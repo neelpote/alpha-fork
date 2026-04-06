@@ -1,0 +1,11 @@
+{
+    "strategy": "Momentum + Mean Reversion Hybrid",
+    "initial_capital": 1000,
+    "final_value": 1266.21,
+    "total_profit": 266.21,
+    "apy_percent": 160.45,
+    "max_drawdown_percent": 29.77,
+    "win_rate_percent": 51.87,
+    "sharpe_ratio": 2.66,
+    "total_trades": 187
+}

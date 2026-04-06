@@ -22,3 +22,22 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Compact compiler output (generated artifacts — do not commit keys)
+contracts/managed/
+
+# Deployment info
+# deployment.json
+
+# Wallet seeds — never commit
+.env
+.env.local
+
+# Embedded repos / local dev tools
+midnight-local-network/
+midnight-level-db/
+
+# Python
+__pycache__/
+*.pyc
+alphavault-backend/data/

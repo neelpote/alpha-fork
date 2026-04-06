@@ -1,0 +1,9 @@
+{
+    "privateNetPnl": 266210,
+    "privateCapital": 1000000,
+    "privateTradePeriod": 90,
+    "privateTradeCount": 187,
+    "submittedApyBps": 10796,
+    "tradeDataHash": "39b94ca0795391548378945bf9da3e8e9f5cfb764a7923887ade5d2c83689705",
+    "description": "Feed privateNetPnl, privateCapital, privateTradePeriod, privateTradeCount, tradeDataHash as witnesses to updatePerformance circuit"
+}
