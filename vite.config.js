@@ -1,5 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { existsSync } from 'fs'
+import { resolve } from 'path'
+
+const contractPath = resolve('./contracts/managed/alpha-vault/contract/index.js');
+const contractAlias = existsSync(contractPath)
+  ? contractPath
+  : resolve('./src/contract/contract-stub.js');
 
 export default defineConfig({
   plugins: [react()],
@@ -11,6 +18,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+    },
+    hmr: true,
+  },
+
+  resolve: {
+    alias: {
+      'alpha-vault-contract': contractAlias,
     },
   },
 
@@ -41,5 +55,6 @@ export default defineConfig({
   // Pre-bundle heavy deps for faster dev server startup
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', 'recharts', 'lucide-react'],
+    exclude: ['@midnight-ntwrk/midnight-js-fetch-zk-config-provider'],
   },
 })

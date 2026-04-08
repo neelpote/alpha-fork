@@ -58,3 +58,34 @@ export const fetchDrawdown         = () => apiFetch('/drawdown');
 export const fetchMonthlyReturns   = () => apiFetch('/monthly-returns');
 export const fetchRollingMetrics   = () => apiFetch('/rolling-metrics');
 export const fetchBenchmark        = () => apiFetch('/benchmark');
+
+// ── Bot Plugin API ────────────────────────────────────────────────────────────
+
+function apiUrl(path) {
+  return import.meta.env.VITE_API_BASE
+    ? `${import.meta.env.VITE_API_BASE}${path}`
+    : `/api${path}`;
+}
+
+export async function uploadBot(file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(apiUrl('/upload-bot'), { method: 'POST', body: form });
+  if (!res.ok) throw new Error(`Upload failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function runBot(filename) {
+  const res = await fetch(apiUrl('/run-bot'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename }),
+  });
+  if (!res.ok) throw new Error(`Run failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function listBots() {
+  const data = await apiFetch('/bots');
+  return data.bots ?? [];
+}

@@ -1,11 +1,19 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import json
 import pandas as pd
 import os
+import sys
+
+# Allow imports from parent directory
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.plugin_runner import run_bot_plugin
 
 app = Flask(__name__)
-CORS(app)  # Allow requests from the Vite dev server
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=False)
+
+BOTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bots")
+os.makedirs(BOTS_DIR, exist_ok=True)
 
 def load_json(filename):
     path = os.path.join("data", filename)
@@ -143,6 +151,63 @@ def get_rolling_metrics():
 def get_benchmark():
     # Static benchmark — would need real market data for live version
     return jsonify([])
+
+
+# ── Bot Plugin Endpoints ──────────────────────────────────────────────────────
+
+@app.route("/upload-bot", methods=["POST", "OPTIONS"])
+def upload_bot():
+    """Receive a .py bot file, save it to bots/ folder."""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    if "file" not in request.files:
+        return jsonify({"success": False, "error": "No file provided"}), 400
+
+    file = request.files["file"]
+    if not file.filename.endswith(".py"):
+        return jsonify({"success": False, "error": "Only .py files are accepted"}), 400
+
+    # Sanitize filename
+    filename = os.path.basename(file.filename)
+    save_path = os.path.join(BOTS_DIR, filename)
+    file.save(save_path)
+
+    return jsonify({"success": True, "filename": filename, "path": save_path})
+
+
+@app.route("/run-bot", methods=["POST"])
+def run_bot():
+    """Run a previously uploaded bot and generate ZK input."""
+    data = request.get_json()
+    filename = data.get("filename")
+    if not filename:
+        return jsonify({"success": False, "error": "filename required"}), 400
+
+    filepath = os.path.join(BOTS_DIR, os.path.basename(filename))
+    if not os.path.exists(filepath):
+        return jsonify({"success": False, "error": f"Bot file not found: {filename}"}), 404
+
+    # Change working dir to backend root so data/ paths resolve correctly
+    original_dir = os.getcwd()
+    backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir(backend_root)
+
+    try:
+        result = run_bot_plugin(filepath)
+    finally:
+        os.chdir(original_dir)
+
+    return jsonify(result)
+
+
+@app.route("/bots", methods=["GET"])
+def list_bots():
+    """List all uploaded bot files."""
+    try:
+        files = [f for f in os.listdir(BOTS_DIR) if f.endswith(".py")]
+        return jsonify({"bots": files})
+    except Exception as e:
+        return jsonify({"bots": [], "error": str(e)})
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

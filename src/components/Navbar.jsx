@@ -30,6 +30,7 @@ const Navbar = () => {
     { to: '/strategy',   label: 'Strategy'  },
     { to: '/analytics',  label: 'Analytics' },
     { to: '/docs',       label: 'Docs'      },
+    { to: '/submit-bot', label: 'Submit Bot' },
     ...(connected ? [{ to: '/dashboard', label: 'Dashboard' }] : []),
   ];
 

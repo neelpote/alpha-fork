@@ -1,11 +1,11 @@
 {
-    "strategy": "Momentum + Mean Reversion Hybrid",
-    "initial_capital": 1000,
-    "final_value": 1266.21,
-    "total_profit": 266.21,
-    "apy_percent": 160.45,
-    "max_drawdown_percent": 29.77,
-    "win_rate_percent": 51.87,
-    "sharpe_ratio": 2.66,
-    "total_trades": 187
+  "strategy": "Example Mean Reversion Bot",
+  "initial_capital": 1000.0,
+  "final_value": 1056.36,
+  "total_profit": 56.3579,
+  "apy_percent": 22.85,
+  "max_drawdown_percent": 0,
+  "win_rate_percent": 65.7,
+  "sharpe_ratio": 0,
+  "total_trades": 35
 }

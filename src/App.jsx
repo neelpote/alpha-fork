@@ -13,6 +13,7 @@ const ConnectWallPage= lazy(() => import('./pages/ConnectWallPage'));
 const StrategyPage   = lazy(() => import('./pages/StrategyPage'));
 const AnalyticsPage  = lazy(() => import('./pages/AnalyticsPage'));
 const DocsPage       = lazy(() => import('./pages/DocsPage'));
+const BotSubmitPage  = lazy(() => import('./pages/BotSubmitPage'));
 
 const PageLoader = () => (
   <div className="flex-1 flex items-center justify-center min-h-[50vh]">
@@ -70,6 +71,7 @@ const AppRoutes = () => (
           <Route path="/docs"      element={<DocsPage />} />
           <Route path="/connect"   element={<ConnectWallPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/submit-bot" element={<BotSubmitPage />} />
           <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

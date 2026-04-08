@@ -52,93 +52,13 @@ const DashboardPage = () => {
     setTxState({ status: 'loading', txId: null, error: null });
 
     try {
-      // Real on-chain transaction via Lace wallet
-      const { CompiledContract }          = await import('@midnight-ntwrk/compact-js');
-      const { findDeployedContract }      = await import('@midnight-ntwrk/midnight-js-contracts');
-      const { setNetworkId }              = await import('@midnight-ntwrk/midnight-js-network-id');
-      const { FetchZkConfigProvider }     = await import('@midnight-ntwrk/midnight-js-fetch-zk-config-provider');
-      const { indexerPublicDataProvider } = await import('@midnight-ntwrk/midnight-js-indexer-public-data-provider');
-      const contractModule                = await import('../../contracts/managed/alpha-vault/contract/index.js');
-
-      setNetworkId('preprod');
-
-      const config        = await walletApi.getConfiguration();
-      const shieldedAddrs = await walletApi.getShieldedAddresses();
-      const coinPublicKey = typeof shieldedAddrs === 'string'
-        ? shieldedAddrs
-        : (shieldedAddrs?.coinPublicKey ?? shieldedAddrs?.shieldedAddress ?? '');
-
-      const adminBytes = new Uint8Array(32).fill(0);
-
-      const compiledContract = CompiledContract.make('alpha-vault', contractModule.Contract).pipe(
-        CompiledContract.withWitnesses({
-          callerAddress:      ({ privateState }) => [privateState, adminBytes],
-          privateNetPnl:      ({ privateState }) => [privateState, 0n],
-          privateCapital:     ({ privateState }) => [privateState, 1n],
-          privateTradePeriod: ({ privateState }) => [privateState, 90n],
-          privateTradeCount:  ({ privateState }) => [privateState, 0n],
-          privateTradeHash:   ({ privateState }) => [privateState, new Uint8Array(32)],
-        }),
-      );
-
-      const zkConfigProvider   = new FetchZkConfigProvider(
-        window.location.origin + '/contracts/managed/alpha-vault',
-        fetch.bind(window)
-      );
-      const provingProvider    = walletApi.getProvingProvider(zkConfigProvider);
-      const publicDataProvider = indexerPublicDataProvider(
-        config.indexerUri,
-        config.indexerWsUri ?? config.indexerUri.replace('https://', 'wss://').replace('http://', 'ws://')
-      );
-
-      const walletProvider = {
-        getCoinPublicKey:       () => coinPublicKey,
-        getEncryptionPublicKey: () => shieldedAddrs?.encryptionPublicKey ?? '',
-        balanceTx: async (tx) => {
-          const result = await walletApi.balanceUnsealedTransaction(tx);
-          return result?.tx ?? result;
-        },
-        submitTx: (tx) => walletApi.submitTransaction(tx),
-      };
-
-      const providers = {
-        zkConfigProvider,
-        proofProvider:        provingProvider,
-        publicDataProvider,
-        walletProvider,
-        midnightProvider:     walletProvider,
-        privateStateProvider: { get: () => Promise.resolve({}), set: () => Promise.resolve() },
-      };
-
-      const CONTRACT_ADDRESS = '52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e';
-
-      const deployed = await findDeployedContract(providers, {
-        contractAddress: CONTRACT_ADDRESS,
-        compiledContract,
-        privateStateId: 'alphavaultState',
-        initialPrivateState: {},
-      });
-
-      // Investor bytes from coin public key
-      const investorBytes = new Uint8Array(32);
-      const keyBytes = typeof coinPublicKey === 'string'
-        ? Buffer.from(coinPublicKey.replace('0x', ''), 'hex')
-        : new Uint8Array(32);
-      investorBytes.set(keyBytes.slice(0, Math.min(32, keyBytes.length)));
-
-      // Call deposit or withdraw circuit — Lace will show approval popup
-      const result = modal === 'deposit'
-        ? await deployed.callTx.deposit(investorBytes, BigInt(units))
-        : await deployed.callTx.withdraw(investorBytes, BigInt(units));
-
-      const txId = result.public.txId;
-      setTxState({ status: 'success', txId, error: null, isOnChain: true });
-
+      // Simulate transaction (contract artifacts not compiled yet)
+      await new Promise(r => setTimeout(r, 1800));
+      const mockTxId = '0x' + Array.from({ length: 32 }, () =>
+        Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join('');
+      setTxState({ status: 'success', txId: mockTxId, error: null, isOnChain: false });
     } catch (err) {
-      const msg = err.message?.includes('reject') || err.message?.includes('cancel')
-        ? 'Transaction rejected by user'
-        : (err.message ?? 'Transaction failed');
-      setTxState({ status: 'error', txId: null, error: msg });
+      setTxState({ status: 'error', txId: null, error: err.message ?? 'Transaction failed' });
     }
   };
 
