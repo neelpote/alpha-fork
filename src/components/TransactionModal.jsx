@@ -66,9 +66,9 @@ const TransactionModal = ({ type, onClose, onSubmit, txState, walletConnected })
         {txState.status === 'loading' && (
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 size={40} className="animate-spin text-accent-blue" />
-            <p className="text-white font-medium">Generating ZK proof...</p>
+            <p className="text-white font-medium">Waiting for Lace approval...</p>
             <p className="text-gray-400 text-sm text-center">
-              Lace will ask for approval. This takes 30-60 seconds.
+              Check your Lace wallet popup. Proof generation takes 30-60 seconds.
             </p>
           </div>
         )}
@@ -77,24 +77,18 @@ const TransactionModal = ({ type, onClose, onSubmit, txState, walletConnected })
         {txState.status === 'success' && (
           <div className="flex flex-col items-center gap-4 py-4">
             <CheckCircle size={40} className="text-semantic-profit" />
-            <p className="text-white font-semibold">Transaction Submitted!</p>
+            <p className="text-white font-semibold">Transaction Confirmed!</p>
             <p className="text-gray-400 text-xs font-mono text-center break-all">
               {txState.txId}
             </p>
-            {txState.isOnChain ? (
-              <a
-                href={`${EXPLORER}/${txState.txId}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 text-accent-blue text-sm hover:underline"
-              >
-                <ExternalLink size={14} /> View on Explorer
-              </a>
-            ) : (
-              <p className="text-gray-500 text-xs text-center">
-                Demo transaction — run <code className="text-accent-blue">node scripts/deposit.mjs</code> for a real on-chain deposit.
-              </p>
-            )}
+            <a
+              href={`${EXPLORER}/${txState.txId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 text-accent-blue text-sm hover:underline"
+            >
+              <ExternalLink size={14} /> View on Midnight Explorer
+            </a>
             <button onClick={onClose} className="w-full py-3 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors">
               Close
             </button>
