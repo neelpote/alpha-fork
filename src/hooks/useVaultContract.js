@@ -25,8 +25,11 @@ async function fetchVaultState() {
     const { data } = await res.json();
     if (!data?.contractState?.state) return null;
 
-    const { ledger } = await import('../../contracts/managed/alpha-vault/contract/index.js');
-    const onChain = ledger(data.contractState.state);
+    let contractModule;
+    try { contractModule = await import('alpha-vault-contract'); }
+    catch { return null; }
+    if (!contractModule.ledger) return null;
+    const onChain = contractModule.ledger(data.contractState.state);
     return {
       totalValueLocked: onChain.totalValueLocked,
       verifiedApy:      Number(onChain.verifiedApy),
@@ -63,11 +66,11 @@ export function useVaultContract(walletApi) {
       const { setNetworkId }               = await import('@midnight-ntwrk/midnight-js-network-id');
       const { FetchZkConfigProvider }      = await import('@midnight-ntwrk/midnight-js-fetch-zk-config-provider');
       const { indexerPublicDataProvider }  = await import('@midnight-ntwrk/midnight-js-indexer-public-data-provider');
-      const contractModule                 = await import('../../contracts/managed/alpha-vault/contract/index.js');
+      let contractModule;
+      try { contractModule = await import('alpha-vault-contract'); }
+      catch { throw new Error('Contract not compiled. Run: compact compile -- contracts/alpha-vault.compact contracts/managed/alpha-vault'); }
 
       setNetworkId('preprod');
-
-      const config = await walletApi.getConfiguration();
       const shieldedAddrs = await walletApi.getShieldedAddresses();
       const coinPublicKey = shieldedAddrs.coinPublicKey;
 
@@ -147,7 +150,9 @@ export function useVaultContract(walletApi) {
       const { setNetworkId }               = await import('@midnight-ntwrk/midnight-js-network-id');
       const { FetchZkConfigProvider }      = await import('@midnight-ntwrk/midnight-js-fetch-zk-config-provider');
       const { indexerPublicDataProvider }  = await import('@midnight-ntwrk/midnight-js-indexer-public-data-provider');
-      const contractModule                 = await import('../../contracts/managed/alpha-vault/contract/index.js');
+      let contractModule;
+      try { contractModule = await import('alpha-vault-contract'); }
+      catch { throw new Error('Contract not compiled. Run: compact compile -- contracts/alpha-vault.compact contracts/managed/alpha-vault'); }
 
       setNetworkId('preprod');
       const config        = await walletApi.getConfiguration();

@@ -43,7 +43,7 @@ const mockState = {
 let _contractModule = null;
 async function getContractModule() {
   if (_contractModule) return _contractModule;
-  _contractModule = await import('../../contracts/managed/alpha-vault/contract/index.js');
+  _contractModule = await import('alpha-vault-contract');
   return _contractModule;
 }
 
