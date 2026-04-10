@@ -18,6 +18,7 @@ import {
   fetchDrawdown, fetchMonthlyReturns, fetchRollingMetrics, fetchBenchmark,
 } from '../utils/mockApi';
 import { useWallet } from '../context/WalletContext';
+import { depositOnChain, withdrawOnChain } from '../contract/vaultService';
 import { Loader2, ShieldCheck, Cpu, TrendingUp, Lock } from 'lucide-react';
 
 const DashboardPage = () => {
@@ -50,105 +51,12 @@ const DashboardPage = () => {
       return;
     }
     setTxState({ status: 'loading', txId: null, error: null });
-
     try {
       if (!walletApi) throw new Error('Wallet not connected. Connect Lace first.');
-
-      // Lazy-load Midnight SDK (bundled by Vite, uses Lace proof server — no Docker needed)
-      const [
-        { CompiledContract },
-        { findDeployedContract },
-        { setNetworkId },
-        { FetchZkConfigProvider },
-        { indexerPublicDataProvider },
-        contractModule,
-      ] = await Promise.all([
-        import('@midnight-ntwrk/compact-js'),
-        import('@midnight-ntwrk/midnight-js-contracts'),
-        import('@midnight-ntwrk/midnight-js-network-id'),
-        import('@midnight-ntwrk/midnight-js-fetch-zk-config-provider'),
-        import('@midnight-ntwrk/midnight-js-indexer-public-data-provider'),
-        import('../../contracts/managed/alpha-vault/contract/index.js'),
-      ]);
-
-      setNetworkId('preprod');
-
-      const config         = await walletApi.getConfiguration();
-      const shieldedAddrs  = await walletApi.getShieldedAddresses();
-      const coinPublicKey  = shieldedAddrs?.coinPublicKey
-        ?? (typeof shieldedAddrs === 'string' ? shieldedAddrs : null);
-
-      const adminBytes = new Uint8Array(32).fill(0);
-
-      const compiledContract = CompiledContract.make('alpha-vault', contractModule.Contract).pipe(
-        CompiledContract.withWitnesses({
-          callerAddress:      ({ privateState }) => [privateState, adminBytes],
-          privateNetPnl:      ({ privateState }) => [privateState, 0n],
-          privateCapital:     ({ privateState }) => [privateState, 1n],
-          privateTradePeriod: ({ privateState }) => [privateState, 90n],
-          privateTradeCount:  ({ privateState }) => [privateState, 0n],
-          privateTradeHash:   ({ privateState }) => [privateState, new Uint8Array(32)],
-        }),
-      );
-
-      // ZK keys served from /public — Lace's proof server handles proof generation
-      const zkConfigProvider   = new FetchZkConfigProvider(
-        window.location.origin + '/contracts/managed/alpha-vault',
-        fetch.bind(window)
-      );
-      const provingProvider    = walletApi.getProvingProvider(zkConfigProvider);
-      const publicDataProvider = indexerPublicDataProvider(
-        config.indexerUri,
-        config.indexerWsUri ?? config.indexerUri.replace('https://', 'wss://').replace('http://', 'ws://')
-      );
-
-      const walletProvider = {
-        getCoinPublicKey:       () => coinPublicKey,
-        getEncryptionPublicKey: () => shieldedAddrs?.encryptionPublicKey ?? '',
-        balanceTx: async (tx) => {
-          const result = await walletApi.balanceUnsealedTransaction(tx);
-          return result?.tx ?? result;
-        },
-        submitTx: (tx) => walletApi.submitTransaction(tx),
-      };
-
-      const providers = {
-        zkConfigProvider,
-        proofProvider:        provingProvider,
-        publicDataProvider,
-        walletProvider,
-        midnightProvider:     walletProvider,
-        privateStateProvider: { get: () => Promise.resolve({}), set: () => Promise.resolve() },
-      };
-
-      const CONTRACT_ADDRESS = '52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e';
-
-      const deployed = await findDeployedContract(providers, {
-        contractAddress: CONTRACT_ADDRESS,
-        compiledContract,
-        privateStateId:      'alphavaultState',
-        initialPrivateState: {},
-      });
-
-      // Investor bytes from coin public key
-      const investorBytes = new Uint8Array(32);
-      if (coinPublicKey) {
-        const keyBytes = Uint8Array.from(
-          coinPublicKey.match(/.{1,2}/g).map(b => parseInt(b, 16))
-        );
-        investorBytes.set(keyBytes.slice(0, 32));
-      }
-
-      let result;
-      if (modal === 'deposit') {
-        result = await deployed.callTx.deposit(investorBytes, BigInt(units));
-      } else {
-        result = await deployed.callTx.withdraw(investorBytes, BigInt(units));
-      }
-
-      const txId = result.public.txId;
+      const txId = modal === 'deposit'
+        ? await depositOnChain(walletApi, units)
+        : await withdrawOnChain(walletApi, units);
       setTxState({ status: 'success', txId, error: null, isOnChain: true });
-
     } catch (err) {
       const msg = err.message?.includes('rejected') || err.message?.includes('cancel')
         ? 'Transaction rejected by user'

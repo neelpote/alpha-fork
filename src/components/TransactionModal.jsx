@@ -66,9 +66,10 @@ const TransactionModal = ({ type, onClose, onSubmit, txState, walletConnected })
         {txState.status === 'loading' && (
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 size={40} className="animate-spin text-accent-blue" />
-            <p className="text-white font-medium">Waiting for Lace approval...</p>
+            <p className="text-white font-medium">Submitting to Midnight...</p>
             <p className="text-gray-400 text-sm text-center">
-              Check your Lace wallet popup. Proof generation takes 30-60 seconds.
+              Syncing wallet + generating ZK proof.<br />
+              This takes <span className="text-white font-semibold">2-3 minutes</span> — please wait.
             </p>
           </div>
         )}

@@ -1,10 +1,11 @@
 /**
- * AlphaVault — Update Performance Script
- * Reads zk_input.json from the backend and calls updatePerformance()
- * on the live contract, submitting a ZK proof of the trading APY.
+ * AlphaVault — Deposit Script
+ * Calls the deposit() circuit on the deployed contract and prints the tx ID.
  *
- * Run after the trading bot completes a session:
- *   node scripts/update-performance.mjs
+ * Usage:
+ *   MIDNIGHT_SEED="..." AMOUNT=1000000 node scripts/deposit.mjs
+ *
+ * AMOUNT is in smallest units (e.g. 1000000 = 1 token with 6 decimals)
  */
 
 import { CompiledContract } from '@midnight-ntwrk/compact-js';
@@ -35,17 +36,10 @@ const INDEXER_WS   = 'wss://indexer.preprod.midnight.network/api/v3/graphql/ws';
 const NODE         = 'https://rpc.preprod.midnight.network';
 const PROOF_SERVER = 'http://127.0.0.1:6300';
 
+// Load deployment
 const deployment = JSON.parse(fs.readFileSync('deployment.json', 'utf8'));
 const CONTRACT_ADDRESS = deployment.contractAddress;
-
-// Load ZK input from backend
-const zkInput = JSON.parse(fs.readFileSync('alphavault-backend/data/zk_input.json', 'utf8'));
-console.log('\n📊 ZK Input loaded:');
-console.log(`   Net PnL      : ${zkInput.privateNetPnl} (fixed point)`);
-console.log(`   Capital      : ${zkInput.privateCapital} (fixed point)`);
-console.log(`   Period       : ${zkInput.privateTradePeriod} days`);
-console.log(`   Trade Count  : ${zkInput.privateTradeCount}`);
-console.log(`   APY (bps)    : ${zkInput.submittedApyBps} = ${(zkInput.submittedApyBps / 100).toFixed(2)}%\n`);
+const AMOUNT = BigInt(process.env.AMOUNT ?? '1000000'); // default 1 token
 
 function deriveKeysFromSeed(seedHex) {
   const hd = HDWallet.fromSeed(Buffer.from(seedHex, 'hex'));
@@ -101,43 +95,35 @@ async function createWalletProvider(ctx) {
 }
 
 async function main() {
-  console.log('🔐 AlphaVault — Submit Performance Proof\n');
+  console.log('\n💸 AlphaVault — Withdraw\n');
+  console.log(`   Contract : ${CONTRACT_ADDRESS}`);
+  console.log(`   Amount   : ${AMOUNT.toLocaleString()} units\n`);
 
+  // Seed
   const mnemonic = process.env.MIDNIGHT_SEED;
   if (!mnemonic) { console.error('❌ Set MIDNIGHT_SEED env var'); process.exit(1); }
-
   const seedBuf = mnemonicToSeedSync(mnemonic.trim());
   const seedHex = seedBuf.slice(0, 32).toString('hex');
 
   setNetworkId(NETWORK_ID);
 
+  // Load contract
   const zkConfigPath = path.resolve('contracts', 'managed', 'alpha-vault');
   const contractModule = await import(path.resolve(zkConfigPath, 'contract', 'index.js'));
 
-  // Admin address bytes (same as used during deploy)
-  const adminBytes = new Uint8Array(32).fill(0);
-
   const compiledContract = CompiledContract.make('alpha-vault', contractModule.Contract).pipe(
     CompiledContract.withWitnesses({
-      // Admin identity witness
-      callerAddress: ({ privateState }) => [privateState, adminBytes],
-      // Private trade data witnesses — from zk_input.json
-      privateNetPnl:      ({ privateState }) => [privateState, BigInt(zkInput.privateNetPnl)],
-      privateCapital:     ({ privateState }) => [privateState, BigInt(zkInput.privateCapital)],
-      privateTradePeriod: ({ privateState }) => [privateState, BigInt(zkInput.privateTradePeriod)],
-      privateTradeCount:  ({ privateState }) => [privateState, BigInt(zkInput.privateTradeCount)],
-      // Trade data commitment — SHA-256 hash of the trade CSV
-      // This hash is published on-chain so investors can audit it
-      privateTradeHash:   ({ privateState }) => {
-        const hashBytes = Buffer.from(zkInput.tradeDataHash, 'hex');
-        const arr = new Uint8Array(32);
-        arr.set(hashBytes.slice(0, 32));
-        return [privateState, arr];
-      },
+      callerAddress:      ({ privateState }) => [privateState, new Uint8Array(32).fill(0)],
+      privateNetPnl:      ({ privateState }) => [privateState, 0n],
+      privateCapital:     ({ privateState }) => [privateState, 1n],
+      privateTradePeriod: ({ privateState }) => [privateState, 90],
+      privateTradeCount:  ({ privateState }) => [privateState, 0],
+      privateTradeHash:   ({ privateState }) => [privateState, new Uint8Array(32)],
     }),
     CompiledContract.withCompiledFileAssets(zkConfigPath),
   );
 
+  // Wallet
   const keys = deriveKeysFromSeed(seedHex);
   const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
   const dustSecretKey      = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
@@ -183,34 +169,33 @@ async function main() {
     midnightProvider:    walletProvider,
   };
 
+  // Find the deployed contract
   console.log('🔍 Finding deployed contract...');
-  const deployed = await findDeployedContract(providers, {
+  const deployedContract = await findDeployedContract(providers, {
     contractAddress: CONTRACT_ADDRESS,
     compiledContract,
     privateStateId: 'alphavaultState',
     initialPrivateState: {},
   });
 
-  // Pass APY directly — positive values work fine with Uint<32>
-  // For negative APY runs, the bot should clamp to 0 (loss = 0 bps on-chain)
-  const rawApy = zkInput.submittedApyBps;
-  const apyBps = Math.max(0, rawApy);
+  // Get investor address bytes (use coin public key as investor ID)
+  const investorBytes = Buffer.from(accountId, 'hex').slice(0, 32);
+  const investorArr   = new Uint8Array(32);
+  investorArr.set(investorBytes.slice(0, Math.min(32, investorBytes.length)));
 
-  console.log(`\n🚀 Submitting ZK performance proof...`);
-  console.log(`   APY: ${(rawApy / 100).toFixed(2)}% (submitting ${apyBps} bps on-chain)`);
-  console.log(`   The ZK proof will verify the APY matches the private trade data.\n`);
+  // Call deposit circuit
+  console.log(`\n🚀 Calling withdraw(${investorArr.slice(0,4).join(',')}.., ${AMOUNT})...`);
+  const result = await deployedContract.callTx.withdraw(investorArr, AMOUNT);
 
-  const result = await deployed.callTx.updatePerformance(
-    BigInt(apyBps),
-    BigInt(zkInput.privateTradeCount),
-  );
+  const txId      = result.public.txId;
+  const blockHeight = result.public.blockHeight;
 
-  const txId = result.public.txId;
-  console.log('\n✅ PERFORMANCE PROOF SUBMITTED!');
+  console.log('\n✅ WITHDRAW SUCCESSFUL!');
   console.log(`   Transaction ID : ${txId}`);
-  console.log(`   Block Height   : ${result.public.blockHeight}`);
-  console.log(`   Verified APY   : ${(zkInput.submittedApyBps / 100).toFixed(2)}%`);
-  console.log(`\n🔍 https://explorer.preprod.midnight.network/transactions/${txId}\n`);
+  console.log(`   Block Height   : ${blockHeight}`);
+  console.log(`   Amount         : ${AMOUNT.toLocaleString()} units`);
+  console.log(`\n🔍 Verify on explorer:`);
+  console.log(`   https://explorer.preprod.midnight.network/transactions/${txId}\n`);
 
   await wallet.stop();
   process.exit(0);
@@ -218,5 +203,6 @@ async function main() {
 
 main().catch(err => {
   console.error('\n❌ FAILED:', err.message ?? err);
+  if (err.stack) console.error(err.stack);
   process.exit(1);
 });

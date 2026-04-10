@@ -209,5 +209,56 @@ def list_bots():
     except Exception as e:
         return jsonify({"bots": [], "error": str(e)})
 
+@app.route("/build-deposit", methods=["POST"])
+def build_deposit():
+    """Run deposit.mjs script and return tx ID."""
+    import subprocess
+    data   = request.get_json() or {}
+    amount = data.get("amount", "1000000")
+    seed   = os.environ.get("MIDNIGHT_SEED", "")
+    if not seed:
+        return jsonify({"error": "MIDNIGHT_SEED not set on server"}), 400
+
+    # Project root is two levels up from api/server.py
+    # api/server.py -> alphavault-backend/ -> alphavault/ (project root)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    env = {**os.environ, "MIDNIGHT_SEED": seed, "AMOUNT": str(amount)}
+    result = subprocess.run(
+        ["node", os.path.join(project_root, "scripts", "deposit.mjs")],
+        cwd=project_root, env=env, capture_output=True, text=True, timeout=300
+    )
+    output = result.stdout + result.stderr
+    # Extract tx ID from output
+    for line in output.splitlines():
+        if "Transaction ID" in line:
+            txId = line.split(":")[-1].strip()
+            return jsonify({"txId": txId, "output": output})
+    return jsonify({"error": "Deposit failed — check Docker proof server is running", "output": output}), 500
+
+
+@app.route("/build-withdraw", methods=["POST"])
+def build_withdraw():
+    """Run withdraw.mjs script and return tx ID."""
+    import subprocess
+    data   = request.get_json() or {}
+    amount = data.get("amount", "1000000")
+    seed   = os.environ.get("MIDNIGHT_SEED", "")
+    if not seed:
+        return jsonify({"error": "MIDNIGHT_SEED not set on server"}), 400
+
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    env = {**os.environ, "MIDNIGHT_SEED": seed, "AMOUNT": str(amount)}
+    result = subprocess.run(
+        ["node", os.path.join(project_root, "scripts", "withdraw.mjs")],
+        cwd=project_root, env=env, capture_output=True, text=True, timeout=300
+    )
+    output = result.stdout + result.stderr
+    for line in output.splitlines():
+        if "Transaction ID" in line:
+            txId = line.split(":")[-1].strip()
+            return jsonify({"txId": txId, "output": output})
+    return jsonify({"error": "Withdraw failed — check Docker proof server is running", "output": output}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

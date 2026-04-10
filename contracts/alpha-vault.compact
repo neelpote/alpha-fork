@@ -137,9 +137,6 @@ export circuit updatePerformance(newApy: Uint<32>, numTrades: Uint<32>): [] {
   verifiedApy.write(disclose(newApy));
   totalTrades.write((totalTrades.read() + disclose(numTrades)) as Uint<32>);
 
-  // Publish the trade data commitment — this is the cryptographic fingerprint
-  // of the private dataset. Investors can audit this hash against the raw data
-  // if the quant ever chooses to disclose it.
   tradeDataCommitment.write(disclose(tradeHash));
 }
 

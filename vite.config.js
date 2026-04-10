@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import wasm from 'vite-plugin-wasm'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
 
@@ -9,7 +10,12 @@ const contractAlias = existsSync(contractPath)
   : resolve('./src/contract/contract-stub.js');
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [wasm(), react()],
+
+  define: {
+    // Make Buffer available globally in browser bundles
+    global: 'globalThis',
+  },
 
   server: {
     proxy: {
@@ -25,6 +31,7 @@ export default defineConfig({
   resolve: {
     alias: {
       'alpha-vault-contract': contractAlias,
+      'cross-fetch': resolve('./src/contract/cross-fetch-shim.js'),
     },
   },
 

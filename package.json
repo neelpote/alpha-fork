@@ -41,6 +41,7 @@
     "recharts": "^3.8.1",
     "rxjs": "^7.8.2",
     "three": "^0.183.2",
+    "vite-plugin-wasm": "^3.6.0",
     "ws": "^8.20.0"
   },
   "devDependencies": {

@@ -65,6 +65,10 @@ export const WalletProvider = ({ children }) => {
     setConnecting(true);
     setError(null);
     try {
+      // Debug: log what's available on window.midnight
+      console.log('[Lace] window.midnight:', window.midnight);
+      console.log('[Lace] keys:', window.midnight ? Object.keys(window.midnight) : 'none');
+
       const keys = window.midnight ? Object.keys(window.midnight) : [];
       if (keys.length === 0) {
         throw new Error(
@@ -76,8 +80,11 @@ export const WalletProvider = ({ children }) => {
         );
       }
 
+      console.log('[Lace] Connecting to:', keys[0]);
       const lace         = window.midnight[keys[0]];
+      console.log('[Lace] lace object:', lace);
       const connectedApi = await lace.connect(NETWORK_ID);
+      console.log('[Lace] connectedApi:', connectedApi);
 
       const [dustRaw, shieldedRaw, unshieldedRaw] = await Promise.all([
         connectedApi.getDustBalance(),
