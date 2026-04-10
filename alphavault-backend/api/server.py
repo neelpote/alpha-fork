@@ -401,5 +401,73 @@ def submit_proof():
     return jsonify({"error": "Proof submission failed", "output": output}), 500
 
 
+@app.route("/build-deposit", methods=["POST"])
+def build_deposit():
+    """Run deposit.mjs script and return tx ID."""
+    import subprocess
+    data   = request.get_json() or {}
+    amount = data.get("amount", "1000000")
+    seed   = os.environ.get("MIDNIGHT_SEED", "")
+    if not seed:
+        return jsonify({"error": "MIDNIGHT_SEED not set on server"}), 400
+
+    project_root = os.path.dirname(BACKEND_ROOT)
+    env = {**os.environ, "MIDNIGHT_SEED": seed, "AMOUNT": str(amount)}
+    result = subprocess.run(
+        ["node", os.path.join(project_root, "scripts", "deposit.mjs")],
+        cwd=project_root, env=env, capture_output=True, text=True, timeout=300
+    )
+    output = result.stdout + result.stderr
+    for line in output.splitlines():
+        if "Transaction ID" in line:
+            txId = line.split(":")[-1].strip()
+            wallet_addr = data.get("walletAddress", "default")
+            balances = load_balances()
+            balances[wallet_addr] = balances.get(wallet_addr, 0) + int(amount)
+            save_balances(balances)
+            return jsonify({"txId": txId, "output": output})
+    return jsonify({"error": "Deposit failed — check Docker proof server is running", "output": output}), 500
+
+
+@app.route("/build-withdraw", methods=["POST"])
+def build_withdraw():
+    """Run withdraw.mjs script and return tx ID."""
+    import subprocess
+    data   = request.get_json() or {}
+    amount = data.get("amount", "1000000")
+    seed   = os.environ.get("MIDNIGHT_SEED", "")
+    if not seed:
+        return jsonify({"error": "MIDNIGHT_SEED not set on server"}), 400
+
+    project_root = os.path.dirname(BACKEND_ROOT)
+    env = {**os.environ, "MIDNIGHT_SEED": seed, "AMOUNT": str(amount)}
+    result = subprocess.run(
+        ["node", os.path.join(project_root, "scripts", "withdraw.mjs")],
+        cwd=project_root, env=env, capture_output=True, text=True, timeout=300
+    )
+    output = result.stdout + result.stderr
+    for line in output.splitlines():
+        if "Transaction ID" in line:
+            txId = line.split(":")[-1].strip()
+            return jsonify({"txId": txId, "output": output})
+    return jsonify({"error": "Withdraw failed — check Docker proof server is running", "output": output}), 500
+
+
+@app.route("/investor-balance")
+def get_investor_balance():
+    """Get the investor's vault balance (tracked locally)."""
+    wallet_addr = request.args.get("address", "default")
+    balances = load_balances()
+    amount = balances.get(wallet_addr, 0)
+    total_tvl = sum(balances.values())
+    return jsonify({
+        "address": wallet_addr,
+        "balance": amount,
+        "balanceNight": amount / 1_000_000,
+        "totalValueLocked": total_tvl,
+        "totalValueLockedNight": total_tvl / 1_000_000,
+    })
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
