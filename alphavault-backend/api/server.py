@@ -287,7 +287,7 @@ def get_contract_state():
             "state": contract_state.get("state"),
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 404
 
 
 BALANCES_FILE = os.path.join(DATA_DIR, "investor_balances.json")
