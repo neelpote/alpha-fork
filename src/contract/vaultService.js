@@ -8,8 +8,14 @@
 const CONTRACT_ADDRESS = '52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e';
 const EXPLORER = 'https://explorer.preprod.midnight.network/transactions';
 
+function apiUrl(path) {
+  return import.meta.env.VITE_API_BASE
+    ? `${import.meta.env.VITE_API_BASE}${path}`
+    : `/api${path}`;
+}
+
 export async function depositOnChain(walletApi, amountUnits, walletAddress = 'default') {
-  const res = await fetch('/api/build-deposit', {
+  const res = await fetch(apiUrl('/build-deposit'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount: amountUnits.toString(), walletAddress }),
@@ -28,7 +34,7 @@ export async function depositOnChain(walletApi, amountUnits, walletAddress = 'de
 }
 
 export async function withdrawOnChain(walletApi, amountUnits) {
-  const res = await fetch('/api/build-withdraw', {
+  const res = await fetch(apiUrl('/build-withdraw'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount: amountUnits.toString() }),
