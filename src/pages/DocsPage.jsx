@@ -246,7 +246,7 @@ export default function DocsPage() {
                 { label: 'GitHub Repo',     href: 'https://github.com/neelpote/AlphaVault-fork' },
                 { label: 'Preprod Explorer', href: 'https://explorer.preprod.midnight.network' },
                 { label: 'Live Contract',   href: 'https://explorer.preprod.midnight.network/contracts/52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e' },
-                { label: 'Proof Tx',        href: 'https://explorer.preprod.midnight.network/transactions/00410168a651a88c69c7580e767933fdbed39bdde558d6a92dae8b439a66ad95e8' },
+                { label: 'Proof Tx',        href: 'https://explorer.preprod.midnight.network/transactions/009543f8150c741cda5e79fe392090c0df847c76f5f1c0243e101b177ada570ed9' },
               ].map(({ label, href }) => (
                 <a key={label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-gray-500 hover:text-white text-xs font-mono transition-colors">
                   <ExternalLink size={11} />

@@ -5,14 +5,14 @@
  * The backend uses MIDNIGHT_SEED from .env to sign transactions.
  */
 
-const CONTRACT_ADDRESS = '49ef75e47587658b9791bde9c9542eacb6442240822ac831836f9089525872b7';
+const CONTRACT_ADDRESS = '52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e';
 const EXPLORER = 'https://explorer.preprod.midnight.network/transactions';
 
-export async function depositOnChain(walletApi, amountUnits) {
+export async function depositOnChain(walletApi, amountUnits, walletAddress = 'default') {
   const res = await fetch('/api/build-deposit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount: amountUnits.toString() }),
+    body: JSON.stringify({ amount: amountUnits.toString(), walletAddress }),
   });
 
   const data = await res.json().catch(() => ({}));

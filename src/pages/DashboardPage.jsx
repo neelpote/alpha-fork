@@ -11,15 +11,17 @@ import RollingMetricsChart from '../components/RollingMetricsChart';
 import BenchmarkChart from '../components/BenchmarkChart';
 import TransactionModal from '../components/TransactionModal';
 import ZKProofModal from '../components/ZKProofModal';
+import TradeVerifyModal from '../components/TradeVerifyModal';
 import EpochStatus from '../components/EpochStatus';
 import {
   fetchMetrics, fetchEquity, fetchTrades,
   fetchAllocation, fetchAssetPerformance, fetchRiskMetrics,
   fetchDrawdown, fetchMonthlyReturns, fetchRollingMetrics, fetchBenchmark,
+  fetchContractState, fetchInvestorBalance, startLivePolling,
 } from '../utils/mockApi';
 import { useWallet } from '../context/WalletContext';
 import { depositOnChain, withdrawOnChain } from '../contract/vaultService';
-import { Loader2, ShieldCheck, Cpu, TrendingUp, Lock } from 'lucide-react';
+import { Loader2, ShieldCheck, Cpu, TrendingUp, Lock, ExternalLink } from 'lucide-react';
 
 const DashboardPage = () => {
   const [metrics, setMetrics]               = useState(null);
@@ -37,8 +39,12 @@ const DashboardPage = () => {
   const [txState, setTxState]               = useState({ status: 'idle', txId: null, error: null });
   const [lastVerified, setLastVerified]     = useState('2 hours ago');
   const [zkFlash, setZkFlash]               = useState(false);
+  const [contractState, setContractState]   = useState(null);
+  const [investorBalance, setInvestorBalance] = useState(null);
+  const [livePrices, setLivePrices]         = useState(null);
+  const [botStatus, setBotStatus]           = useState(null);
 
-  const { connected, api: walletApi } = useWallet();
+  const { connected, api: walletApi, address } = useWallet();
 
   const handleCloseModal = () => {
     setModal(null);
@@ -57,6 +63,8 @@ const DashboardPage = () => {
         ? await depositOnChain(walletApi, units)
         : await withdrawOnChain(walletApi, units);
       setTxState({ status: 'success', txId, error: null, isOnChain: true });
+      // Refresh investor balance
+      fetchInvestorBalance('default').then(b => { if (b) setInvestorBalance(b); });
     } catch (err) {
       const msg = err.message?.includes('rejected') || err.message?.includes('cancel')
         ? 'Transaction rejected by user'
@@ -81,6 +89,10 @@ const DashboardPage = () => {
         setMetrics(m); setEquityData(e); setTradesData(t);
         setAllocationData(a); setAssetPerfData(ap); setRiskData(r);
         setDrawdownData(dd); setMonthlyData(mr); setRollingData(rm); setBenchmarkData(bm);
+        // Fetch on-chain state in background
+        fetchContractState().then(cs => { if (!cancelled) setContractState(cs); });
+        // Fetch investor balance
+        fetchInvestorBalance('default').then(b => { if (!cancelled && b) setInvestorBalance(b); });
       } catch (err) {
         if (!cancelled) {
           console.error('[Dashboard] Backend fetch failed:', err.message);
@@ -92,6 +104,15 @@ const DashboardPage = () => {
     };
     load();
     return () => { cancelled = true; };
+  }, []);
+
+  // Live price + bot status polling every 10s
+  useEffect(() => {
+    const stop = startLivePolling((priceData, status) => {
+      setLivePrices(priceData.prices);
+      setBotStatus(status);
+    }, 10_000);
+    return stop;
   }, []);
 
   const handleZKVerified = () => {
@@ -135,17 +156,49 @@ const DashboardPage = () => {
             <h1 className="text-3xl font-bold text-white mb-1">Investor Dashboard</h1>
             <p className="text-gray-500 text-sm font-mono">Proof-backed returns · On-chain verified performance</p>
           </div>
-          <button
-            onClick={() => setModal('zk')}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-accent-indigo/30 bg-accent-indigo/10 text-accent-indigo text-sm font-semibold hover:bg-accent-indigo/20 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all duration-300 group"
-          >
-            <ShieldCheck size={15} className="group-hover:scale-110 transition-transform" />
-            Generate ZK Proof
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setModal('verify')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-accent-green/30 bg-accent-green/10 text-accent-green text-sm font-semibold hover:bg-accent-green/20 transition-all duration-300 group"
+            >
+              <ShieldCheck size={15} className="group-hover:scale-110 transition-transform" />
+              Verify Trade Data
+            </button>
+            <button
+              onClick={() => setModal('zk')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-accent-indigo/30 bg-accent-indigo/10 text-accent-indigo text-sm font-semibold hover:bg-accent-indigo/20 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all duration-300 group"
+            >
+              <ShieldCheck size={15} className="group-hover:scale-110 transition-transform" />
+              Generate ZK Proof
+            </button>
+          </div>
         </div>
 
         {/* Epoch status */}
         <EpochStatus lastVerified={lastVerified} />
+
+        {/* Live prices ticker */}
+        {livePrices && (
+          <div className="flex flex-wrap items-center gap-4 px-5 py-3 rounded-xl glass border border-white/5 text-xs font-mono">
+            <span className="flex items-center gap-1.5 text-accent-green">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse inline-block" />
+              LIVE
+            </span>
+            {Object.entries(livePrices).map(([asset, price]) => (
+              <span key={asset} className="text-gray-300">
+                <span className="text-gray-500">{asset}</span>{' '}
+                <span className="text-white font-semibold">${Number(price).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+              </span>
+            ))}
+            {botStatus && (
+              <span className="ml-auto flex items-center gap-1.5 text-gray-500">
+                <span className={`w-1.5 h-1.5 rounded-full inline-block ${botStatus.running ? 'bg-accent-green animate-pulse' : 'bg-gray-600'}`} />
+                Bot {botStatus.running ? `running · tick #${botStatus.iteration}` : 'idle'}
+                {botStatus.total_trades > 0 && ` · ${botStatus.total_trades} trades`}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* ZK flash banner */}
         {zkFlash && (
@@ -177,10 +230,18 @@ const DashboardPage = () => {
               <div>
                 <p className="text-gray-500 text-[10px] font-mono uppercase tracking-widest mb-1">Total Value Locked</p>
                 <p className="text-2xl font-bold text-white data-value">
-                  {metrics.finalValue
-                    ? `$${Number(metrics.finalValue).toLocaleString('en-US', { maximumFractionDigits: 2 })}`
-                    : '—'}
+                  {investorBalance?.totalValueLockedNight
+                    ? `${investorBalance.totalValueLockedNight.toFixed(4)} NIGHT`
+                    : metrics.finalValue
+                      ? `$${Number(metrics.finalValue).toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                      : "—"}
                 </p>
+                {contractState && (
+                  <a href={contractState.explorerUrl} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1 text-accent-green text-[10px] font-mono mt-1 hover:underline">
+                    <ShieldCheck size={9} /> On-chain verified <ExternalLink size={9} />
+                  </a>
+                )}
               </div>
               <div>
                 <p className="text-gray-500 text-[10px] font-mono uppercase tracking-widest mb-1">ZK-Verified APY</p>
@@ -191,6 +252,11 @@ const DashboardPage = () => {
                   <span className="text-[10px] text-gray-600 font-mono">(ZK Verified)</span>
                 </div>
               </div>
+                {contractState && (
+                  <p className="text-[10px] font-mono text-gray-600 mt-1">
+                    Contract: {contractState.contractAddress?.slice(0,12)}…
+                  </p>
+                )}
               <div className="flex gap-3 ml-auto lg:ml-0">
                 <button onClick={() => setModal('deposit')} className="btn-primary px-6 py-2.5 rounded-xl hover:scale-[1.03] active:scale-[0.97] transition-transform">Deposit</button>
                 <button onClick={() => setModal('withdraw')} className="btn-ghost px-6 py-2.5 rounded-xl hover:scale-[1.03] active:scale-[0.97] transition-transform">Withdraw</button>
@@ -198,6 +264,20 @@ const DashboardPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Investor Balance */}
+        {connected && investorBalance && investorBalance.balance > 0 && (
+          <div className="glass rounded-2xl p-5 border border-accent-blue/20 flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-[10px] font-mono uppercase tracking-widest mb-1">Your Vault Balance</p>
+              <p className="text-2xl font-bold text-white">{investorBalance.balanceNight.toFixed(6)} <span className="text-sm text-gray-400">NIGHT</span></p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent-green/10 border border-accent-green/20">
+              <ShieldCheck size={12} className="text-accent-green" />
+              <span className="text-accent-green text-xs font-mono">On-chain</span>
+            </div>
+          </div>
+        )}
 
         {/* Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -241,6 +321,9 @@ const DashboardPage = () => {
       )}
       {modal === 'zk' && (
         <ZKProofModal onClose={() => setModal(null)} onVerified={handleZKVerified} />
+      )}
+      {modal === 'verify' && (
+        <TradeVerifyModal onClose={() => setModal(null)} />
       )}
     </div>
   );

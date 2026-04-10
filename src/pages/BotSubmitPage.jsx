@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, Bot, CheckCircle, XCircle, Loader2, FileCode, ChevronRight, Copy, Check } from 'lucide-react';
-import { uploadBot, runBot } from '../utils/mockApi';
+import { Upload, Bot, CheckCircle, XCircle, Loader2, FileCode, ChevronRight, Copy, Check, ShieldCheck, ExternalLink } from 'lucide-react';
+import { uploadBot, runBot, submitProof } from '../utils/mockApi';
 
 const EXAMPLE_BOT = `BOT_NAME        = "My Strategy Bot"
 INITIAL_CAPITAL = 1000
@@ -55,6 +55,8 @@ export default function BotSubmitPage() {
   const [stage,     setStage]     = useState('idle'); // idle | uploading | running | done | error
   const [result,    setResult]    = useState(null);
   const [errorMsg,  setErrorMsg]  = useState('');
+  const [proofStage, setProofStage] = useState('idle'); // idle | submitting | done | error
+  const [proofResult, setProofResult] = useState(null);
   const inputRef = useRef();
 
   const handleFile = useCallback((f) => {
@@ -105,6 +107,20 @@ export default function BotSubmitPage() {
   const reset = () => {
     setFile(null); setStage('idle');
     setResult(null); setErrorMsg('');
+    setProofStage('idle'); setProofResult(null);
+  };
+
+  const handleSubmitProof = async () => {
+    setProofStage('submitting');
+    setProofResult(null);
+    try {
+      const data = await submitProof();
+      setProofResult(data);
+      setProofStage('done');
+    } catch (err) {
+      setProofResult({ error: err.message });
+      setProofStage('error');
+    }
   };
 
   return (
@@ -234,11 +250,44 @@ export default function BotSubmitPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 bg-accent-indigo/10 border border-accent-indigo/20 rounded-xl p-4">
-                <p className="text-accent-indigo text-xs font-semibold mb-1">Next step — submit proof on-chain</p>
-                <p className="text-gray-400 text-xs font-mono">node scripts/update-performance.mjs</p>
+              <div className="flex-1 space-y-3">
+                {/* Submit Proof On-Chain button */}
+                {proofStage === 'idle' && (
+                  <button
+                    onClick={handleSubmitProof}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent-green/10 border border-accent-green/30 text-accent-green font-semibold text-sm hover:bg-accent-green/20 transition-colors"
+                  >
+                    <ShieldCheck size={16} /> Submit Proof On-Chain
+                  </button>
+                )}
+                {proofStage === 'submitting' && (
+                  <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent-green/10 border border-accent-green/30 text-accent-green text-sm">
+                    <Loader2 size={16} className="animate-spin" /> Generating ZK proof... (2-3 min)
+                  </div>
+                )}
+                {proofStage === 'done' && proofResult?.txId && (
+                  <div className="bg-accent-green/10 border border-accent-green/30 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={16} className="text-accent-green" />
+                      <p className="text-accent-green text-sm font-semibold">Proof submitted on-chain!</p>
+                    </div>
+                    <p className="text-gray-400 text-xs font-mono break-all">{proofResult.txId}</p>
+                    <a
+                      href={`https://explorer.preprod.midnight.network/transactions/${proofResult.txId}`}
+                      target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1 text-accent-blue text-xs hover:underline"
+                    >
+                      <ExternalLink size={11} /> View on Explorer
+                    </a>
+                  </div>
+                )}
+                {proofStage === 'error' && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                    <p className="text-red-400 text-xs">{proofResult?.error}</p>
+                  </div>
+                )}
               </div>
-              <button onClick={reset} className="btn-ghost px-6 py-3 rounded-xl text-sm">
+              <button onClick={reset} className="btn-ghost px-6 py-3 rounded-xl text-sm self-start">
                 Submit another bot
               </button>
             </div>

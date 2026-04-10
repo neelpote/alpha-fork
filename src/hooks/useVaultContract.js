@@ -4,7 +4,7 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 
-const CONTRACT_ADDRESS = '49ef75e47587658b9791bde9c9542eacb6442240822ac831836f9089525872b7';
+const CONTRACT_ADDRESS = '52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e';
 const INDEXER = 'https://indexer.preprod.midnight.network/api/v3/graphql';
 
 // ── Read vault state from indexer ────────────────────────────────────────────

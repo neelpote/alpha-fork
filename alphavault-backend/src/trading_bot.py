@@ -168,8 +168,11 @@ class MomentumStrategy:
         net_pnl    = self.capital - INITIAL_CAPITAL
         net_pnl_fp = int(net_pnl * 1000)
         capital_fp = int(INITIAL_CAPITAL * 1000)
-        period     = max(1, len(self.trades))  # use trade count as proxy for days
-        apy_bps    = int((net_pnl_fp * 365 * 10000) // (capital_fp * 90)) if capital_fp > 0 else 0
+        # Use round() to match ZK circuit tolerance (±1 denominator unit)
+        if capital_fp > 0:
+            apy_bps = round((net_pnl_fp * 365 * 10000) / (capital_fp * 90))
+        else:
+            apy_bps = 0
 
         return {
             "initial_capital":      INITIAL_CAPITAL,

@@ -59,6 +59,37 @@ export const fetchMonthlyReturns   = () => apiFetch('/monthly-returns');
 export const fetchRollingMetrics   = () => apiFetch('/rolling-metrics');
 export const fetchBenchmark        = () => apiFetch('/benchmark');
 
+export async function fetchContractState() {
+  try {
+    return await apiFetch('/contract-state');
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchInvestorBalance(walletAddress = 'default') {
+  try {
+    const url = import.meta.env.VITE_API_BASE
+      ? `${import.meta.env.VITE_API_BASE}/investor-balance?address=${walletAddress}`
+      : `/api/investor-balance?address=${walletAddress}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function submitProof() {
+  const url = import.meta.env.VITE_API_BASE
+    ? `${import.meta.env.VITE_API_BASE}/submit-proof`
+    : `/api/submit-proof`;
+  const res = await fetch(url, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Proof submission failed');
+  return data;
+}
+
 // ── Bot Plugin API ────────────────────────────────────────────────────────────
 
 function apiUrl(path) {
@@ -88,4 +119,37 @@ export async function runBot(filename) {
 export async function listBots() {
   const data = await apiFetch('/bots');
   return data.bots ?? [];
+}
+
+// ── Live Prices & Bot Status ──────────────────────────────────────────────────
+
+export const fetchLivePrices = () => apiFetch('/live-prices');
+export const fetchBotStatus  = () => apiFetch('/bot-status');
+
+/**
+ * Start polling live prices and bot status every `intervalMs` (default 10s).
+ * Returns a cleanup function — call it to stop polling.
+ *
+ * @param {(prices: object, status: object) => void} onUpdate
+ * @param {number} intervalMs
+ */
+export function startLivePolling(onUpdate, intervalMs = 10_000) {
+  let active = true;
+
+  async function poll() {
+    if (!active) return;
+    try {
+      const [priceData, status] = await Promise.all([
+        fetchLivePrices(),
+        fetchBotStatus(),
+      ]);
+      if (active) onUpdate(priceData, status);
+    } catch (err) {
+      // silently ignore — backend may not be running
+    }
+    if (active) setTimeout(poll, intervalMs);
+  }
+
+  poll(); // immediate first fetch
+  return () => { active = false; };
 }
