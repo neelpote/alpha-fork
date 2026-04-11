@@ -2,8 +2,31 @@
 
 A privacy-preserving DeFi vault on the [Midnight Network](https://midnight.network) that enables quantitative traders to manage investor capital while proving performance on-chain via zero-knowledge proofs. Investors see verified APY without ever seeing raw trade data or strategy logic.
 
-**Live contract on Midnight Preprod:**
-`52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e`
+---
+
+## 🏆 Hackathon Submission Info
+
+| | |
+|---|---|
+| **Network** | Midnight Preprod |
+| **Contract Address** | `52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e` |
+| **Explorer** | [View on Midnight Explorer](https://explorer.preprod.midnight.network/contracts/52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e) |
+| **Deployed At** | 2026-04-06T13:44:33Z |
+| **Smart Contract Language** | Compact (Midnight ZK-native) |
+| **ZK Proof System** | ZK-SNARK via Midnight proof server |
+| **Tracks** | Finance & DeFi · Identity & Governance |
+| **Frontend** | React + Vite (localhost:5173) |
+| **Backend** | Flask Python API (localhost:5000) |
+| **Repo** | [github.com/neelpote/alpha-fork](https://github.com/neelpote/alpha-fork) |
+
+### Verifying the Contract
+
+```bash
+# Query live on-chain state via Midnight Indexer
+curl -X POST https://indexer.preprod.midnight.network/api/v4/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ contractState(address: \"52752c94092ffcca7116e2dabc783048da21d36bf2d58214392d2d787fc3dd4e\") { state } }"}'
+```
 
 ---
 
